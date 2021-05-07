@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Atmel Studio Solution File, Format Version 11.00
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "ledstripclock", "ledstripclock\ledstripclock.cproj", "{47E94E2B-025C-4138-B805-9E3EE93A19EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|AVR = Debug|AVR
+		Release|AVR = Release|AVR
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{47E94E2B-025C-4138-B805-9E3EE93A19EB}.Debug|AVR.ActiveCfg = Debug|AVR
+		{47E94E2B-025C-4138-B805-9E3EE93A19EB}.Debug|AVR.Build.0 = Debug|AVR
+		{47E94E2B-025C-4138-B805-9E3EE93A19EB}.Release|AVR.ActiveCfg = Release|AVR
+		{47E94E2B-025C-4138-B805-9E3EE93A19EB}.Release|AVR.Build.0 = Release|AVR
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
