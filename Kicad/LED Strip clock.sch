@@ -5,7 +5,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "Driver for LED Strip clock"
-Date "2021-05-04"
+Date "2021-08-06"
 Rev "V1.0"
 Comp "https://github.com/atoomnetmarc/LED-Strip-clock"
 Comment1 ""
@@ -91,7 +91,7 @@ L Connector:Conn_01x04_Male J5
 U 1 1 6092D456
 P 11050 5100
 F 0 "J5" H 11100 5300 50  0000 R CNN
-F 1 "Conn_01x04_Male" H 11650 4850 50  0000 R CNN
+F 1 "Conn_01x04_Male" H 11650 5400 50  0000 R CNN
 F 2 "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" H 11050 5100 50  0001 C CNN
 F 3 "~" H 11050 5100 50  0001 C CNN
 	1    11050 5100
@@ -100,12 +100,12 @@ $EndComp
 $Comp
 L power:GND #PWR038
 U 1 1 6093ED9B
-P 10550 6150
-F 0 "#PWR038" H 10550 5900 50  0001 C CNN
-F 1 "GND" H 10555 5977 50  0000 C CNN
-F 2 "" H 10550 6150 50  0001 C CNN
-F 3 "" H 10550 6150 50  0001 C CNN
-	1    10550 6150
+P 10800 6150
+F 0 "#PWR038" H 10800 5900 50  0001 C CNN
+F 1 "GND" H 10805 5977 50  0000 C CNN
+F 2 "" H 10800 6150 50  0001 C CNN
+F 3 "" H 10800 6150 50  0001 C CNN
+	1    10800 6150
 	1    0    0    -1  
 $EndComp
 Text Label 10550 5000 0    50   ~ 0
@@ -115,9 +115,9 @@ ROT_B
 Text Label 10550 5200 0    50   ~ 0
 ROT_SW
 Wire Wire Line
-	10550 5300 10550 6150
+	10800 5300 10800 6150
 Wire Wire Line
-	10550 5300 10850 5300
+	10800 5300 10850 5300
 Text Label 5250 3550 0    50   ~ 0
 ~OE_5V
 Text Label 5250 3850 0    50   ~ 0
@@ -2172,11 +2172,6 @@ Wire Wire Line
 	10400 5100 10850 5100
 Wire Wire Line
 	10400 5200 10850 5200
-NoConn ~ 10400 5300
-NoConn ~ 10400 5400
-NoConn ~ 10400 5500
-NoConn ~ 10400 5600
-NoConn ~ 10400 5700
 $Comp
 L power:GND #PWR060
 U 1 1 6103053C
@@ -2310,17 +2305,6 @@ Wire Notes Line
 	6600 6450 8700 6450
 Wire Notes Line
 	8700 6450 8700 4450
-$Comp
-L Analog_ADC:INA219AxDCN U14
-U 1 1 6147942B
-P 7950 5450
-F 0 "U14" H 8200 5800 50  0000 C CNN
-F 1 "INA219AxDCN" H 8200 5050 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23-8" H 8600 5100 50  0001 C CNN
-F 3 "http://www.ti.com/lit/ds/symlink/ina219.pdf" H 8300 5350 50  0001 C CNN
-	1    7950 5450
-	1    0    0    -1  
-$EndComp
 Text GLabel 8400 5250 2    50   BiDi ~ 0
 SDA
 Text GLabel 8400 5350 2    50   Output ~ 0
@@ -2604,4 +2588,80 @@ F 3 "" H 7250 6150 50  0001 C CNN
 	1    7250 6150
 	-1   0    0    1   
 $EndComp
+$Comp
+L Analog_ADC:INA219AxD U14
+U 1 1 610F2B75
+P 7950 5450
+F 0 "U14" H 8200 5800 50  0000 C CNN
+F 1 "INA219AxD" H 8150 5050 50  0000 C CNN
+F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 8750 5100 50  0001 C CNN
+F 3 "http://www.ti.com/lit/ds/symlink/ina219.pdf" H 8300 5350 50  0001 C CNN
+	1    7950 5450
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:TestPoint TP2
+U 1 1 611BBE01
+P 10450 5300
+F 0 "TP2" V 10450 5488 50  0000 L CNN
+F 1 "TestPoint" V 10495 5488 50  0001 L CNN
+F 2 "TestPoint:TestPoint_Pad_D1.0mm" H 10650 5300 50  0001 C CNN
+F 3 "~" H 10650 5300 50  0001 C CNN
+	1    10450 5300
+	0    1    1    0   
+$EndComp
+$Comp
+L Connector:TestPoint TP3
+U 1 1 611BCA6F
+P 10450 5400
+F 0 "TP3" V 10450 5588 50  0000 L CNN
+F 1 "TestPoint" V 10495 5588 50  0001 L CNN
+F 2 "TestPoint:TestPoint_Pad_D1.0mm" H 10650 5400 50  0001 C CNN
+F 3 "~" H 10650 5400 50  0001 C CNN
+	1    10450 5400
+	0    1    1    0   
+$EndComp
+$Comp
+L Connector:TestPoint TP4
+U 1 1 611BCC45
+P 10450 5500
+F 0 "TP4" V 10450 5688 50  0000 L CNN
+F 1 "TestPoint" V 10495 5688 50  0001 L CNN
+F 2 "TestPoint:TestPoint_Pad_D1.0mm" H 10650 5500 50  0001 C CNN
+F 3 "~" H 10650 5500 50  0001 C CNN
+	1    10450 5500
+	0    1    1    0   
+$EndComp
+$Comp
+L Connector:TestPoint TP5
+U 1 1 611BCDDE
+P 10450 5600
+F 0 "TP5" V 10450 5788 50  0000 L CNN
+F 1 "TestPoint" V 10495 5788 50  0001 L CNN
+F 2 "TestPoint:TestPoint_Pad_D1.0mm" H 10650 5600 50  0001 C CNN
+F 3 "~" H 10650 5600 50  0001 C CNN
+	1    10450 5600
+	0    1    1    0   
+$EndComp
+$Comp
+L Connector:TestPoint TP6
+U 1 1 611BCFF7
+P 10450 5700
+F 0 "TP6" V 10450 5888 50  0000 L CNN
+F 1 "TestPoint" V 10495 5888 50  0001 L CNN
+F 2 "TestPoint:TestPoint_Pad_D1.0mm" H 10650 5700 50  0001 C CNN
+F 3 "~" H 10650 5700 50  0001 C CNN
+	1    10450 5700
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	10400 5300 10450 5300
+Wire Wire Line
+	10450 5400 10400 5400
+Wire Wire Line
+	10400 5500 10450 5500
+Wire Wire Line
+	10450 5600 10400 5600
+Wire Wire Line
+	10400 5700 10450 5700
 $EndSCHEMATC
