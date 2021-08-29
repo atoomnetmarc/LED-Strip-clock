@@ -16,95 +16,59 @@
 // Define the array of leds
 CRGB leds[NUM_LEDS];
 
-
-#include <ShiftDisplay2.h>
-
-const int LATCH_PIN = 8;
-const int CLOCK_PIN = 5;
-const int SDATA_PIN = 7;
-const DisplayType DISPLAY_TYPE = COMMON_ANODE; // COMMON_CATHODE or COMMON_ANODE
-const int DISPLAY_SIZE = 4; // number of digits on display
-
-ShiftDisplay2 display(LATCH_PIN, CLOCK_PIN, SDATA_PIN, DISPLAY_TYPE, DISPLAY_SIZE);
+const int dataPin = 13;
+const int clockPin = 14;
+const int latchPin = 15;
 
 void setup()
 {
-  Serial.begin(115200);
-  // Uncomment/edit one of the following lines for your leds arrangement.
-  // ## Clockless types ##
-  // FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);  // GRB ordering is assumed
-  // FastLED.addLeds<SM16703, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<TM1829, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<TM1812, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<TM1809, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<TM1804, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<TM1803, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<UCS1903, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<UCS1903B, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<UCS1904, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<UCS2903, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<WS2812, DATA_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<WS2852, DATA_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<GS1903, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<SK6812, DATA_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<SK6822, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<APA106, DATA_PIN, RGB>(leds, NUM_LEDS);
-  FastLED.addLeds<PL9823, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<SK6822, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<WS2813, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<APA104, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<WS2811_400, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<GE8822, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<GW6205, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<GW6205_400, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<LPD1886, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<LPD1886_8BIT, DATA_PIN, RGB>(leds, NUM_LEDS);
-  // ## Clocked (SPI) types ##
-  // FastLED.addLeds<LPD6803, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<LPD8806, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // GRB ordering is typical
-  // FastLED.addLeds<WS2801, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<WS2803, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<SM16716, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);
-  // FastLED.addLeds<P9813, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // BGR ordering is typical
-  // FastLED.addLeds<DOTSTAR, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // BGR ordering is typical
-  // FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // BGR ordering is typical
-  // FastLED.addLeds<SK9822, DATA_PIN, CLOCK_PIN, RGB>(leds, NUM_LEDS);  // BGR ordering is typical
+    Serial.begin(115200);
+    FastLED.addLeds<PL9823, DATA_PIN, RGB>(leds, NUM_LEDS);
+    FastLED.setBrightness(5);
+    digitalWrite(2, LOW);
+    pinMode(2, OUTPUT);
 
-  pinMode(4, OUTPUT);
-  digitalWrite(4, LOW);
-
-
+    pinMode(latchPin, OUTPUT);
+    pinMode(clockPin, OUTPUT);
+    pinMode(dataPin, OUTPUT);
 }
+
+const char digits[] = {
+    0b00111111, // 0
+    0b00000110, // 1
+    0b01011011, // 2
+    0b01001111, // 3
+    0b01100110, // 4
+    0b01101101, // 5
+    0b01111101, // 6
+    0b00000111, // 7
+    0b01111111, // 8
+    0b01101111  // 9
+};
 
 void loop()
 {
-  /*
-  // Turn the LED on, then pause
-  leds[0] = CRGB::Red;
-  FastLED.show();
-  Serial.println("red");
-  delay(500);
-  leds[0] = CRGB::Green;
-  FastLED.show();
-  Serial.println("green");
-  delay(500);
-  leds[0] = CRGB::Blue;
-  FastLED.show();
-  Serial.println("blue");
-  delay(500);
-  // Now turn the LED off, then pause
-  leds[0] = CRGB::Black;
-  FastLED.show();
-  Serial.println("off");
-  delay(500);
-  */
+    leds[0] = CRGB::Red;
+    FastLED.show();
+    delay(333);
+    leds[0] = CRGB::Green;
+    FastLED.show();
+    delay(333);
+    leds[0] = CRGB::Blue;
+    FastLED.show();
+    delay(333);
 
-  static uint8_t temp = 0;
+    static uint8_t temp = 0;
 
-	display.set(temp, ALIGN_RIGHT);
-	display.show(100);
-  temp++;
+    digitalWrite(latchPin, LOW);
+    uint8_t d = digits[temp];
+    if (temp % 3 == 0)
+        d |= 0b10000000;
+    shiftOut(dataPin, clockPin, MSBFIRST, d);
+    digitalWrite(latchPin, HIGH);
+    Serial.println(temp);
 
+    temp++;
+    if (temp > 9)
+        temp = 0;
 }
