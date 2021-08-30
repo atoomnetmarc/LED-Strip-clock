@@ -2169,7 +2169,7 @@ Text GLabel 9300 5400 0    50   Output ~ 0
 INT
 Text GLabel 9300 5200 0    50   BiDi ~ 0
 SDA
-Text GLabel 9300 5100 0    50   Output ~ 0
+Text GLabel 9300 5100 0    50   Input ~ 0
 SCL
 Wire Wire Line
 	9400 5400 9300 5400
@@ -2245,7 +2245,7 @@ Wire Notes Line
 	8700 6450 8700 4450
 Text GLabel 8400 5250 2    50   BiDi ~ 0
 SDA
-Text GLabel 8400 5350 2    50   Output ~ 0
+Text GLabel 8400 5350 2    50   Input ~ 0
 SCL
 Wire Wire Line
 	8350 5250 8400 5250
@@ -2299,7 +2299,7 @@ Wire Wire Line
 	7950 4750 7950 5050
 Text Notes 9950 6150 0    50   ~ 0
 I2C: 0x20
-Text Notes 7950 6000 0    50   ~ 0
+Text Notes 8000 6050 0    50   ~ 0
 I2C: 0x40
 $Comp
 L Device:C C15
@@ -2531,7 +2531,7 @@ L Analog_ADC:INA219AxD U14
 U 1 1 610F2B75
 P 7950 5450
 F 0 "U14" H 8200 5800 50  0000 C CNN
-F 1 "INA219AxD" H 8150 5050 50  0000 C CNN
+F 1 "INA219AxD" H 8200 5000 50  0000 C CNN
 F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 8750 5100 50  0001 C CNN
 F 3 "http://www.ti.com/lit/ds/symlink/ina219.pdf" H 8300 5350 50  0001 C CNN
 	1    7950 5450
