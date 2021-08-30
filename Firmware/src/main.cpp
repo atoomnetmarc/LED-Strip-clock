@@ -1,32 +1,20 @@
 #include <Arduino.h>
 
-#define FASTLED_ESP8266_RAW_PIN_ORDER
-#include <FastLED.h>
-
-// How many leds in your strip?
-#define NUM_LEDS 1
-
-// For led chips like WS2812, which have a data line, ground, and power, you just
-// need to define DATA_PIN.  For led chipsets that are SPI based (four wires - data, clock,
-// ground, and power), like the LPD8806 define both DATA_PIN and CLOCK_PIN
-// Clock pin only needed for SPI based chipsets when not using hardware SPI
-#define DATA_PIN 12
-//#define CLOCK_PIN 13
-
-// Define the array of leds
-CRGB leds[NUM_LEDS];
-
 const int dataPin = 13;
 const int clockPin = 14;
 const int latchPin = 15;
 
 void setup()
 {
-    Serial.begin(115200);
-    FastLED.addLeds<PL9823, DATA_PIN, RGB>(leds, NUM_LEDS);
-    FastLED.setBrightness(5);
-    digitalWrite(2, LOW);
+    digitalWrite(12, LOW);
+    pinMode(12, OUTPUT);
+
+    digitalWrite(2, HIGH);
     pinMode(2, OUTPUT);
+    delay(500);
+
+    Serial.begin(115200);
+    Serial.println("Hello");
 
     pinMode(latchPin, OUTPUT);
     pinMode(clockPin, OUTPUT);
@@ -48,15 +36,7 @@ const char digits[] = {
 
 void loop()
 {
-    leds[0] = CRGB::Red;
-    FastLED.show();
-    delay(333);
-    leds[0] = CRGB::Green;
-    FastLED.show();
-    delay(333);
-    leds[0] = CRGB::Blue;
-    FastLED.show();
-    delay(333);
+    delay(500);
 
     static uint8_t temp = 0;
 
@@ -71,4 +51,11 @@ void loop()
     temp++;
     if (temp > 9)
         temp = 0;
+
+    static uint8_t single = 0;
+    if (single == 0)
+    {
+        single = 1;
+        analogWrite(2, 1000);
+    }
 }
