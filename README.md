@@ -16,8 +16,10 @@ This project will upgrade the ~~spagetti~~ old circuit to an internet connected 
 
 # Schematic
 
-The [circuit](Kicad/LED%20Strip%20clock.pdf) recycles the same TPIC6B595 power shift registers and drops the ATmega328 and DS3231 for a ESP8266. A 74HCT244 buffer translates between the 3.3V outputs of the ESP8266 and the 5V inputs of the shift register. The original circuit has a rotary encoder to set the light intensity and the current time. The new circuit will only use the rotary encoder to set the light intensity.
+The [circuit](Kicad/LED%20Strip%20clock.pdf) recycles the same TPIC6B595 power shift registers and changes the ATmega328 for a ESP8266 and the DS3231 for a DS3231MZ. A 74HCT244 buffer translates between the 3.3V outputs of the ESP8266 and the 5V inputs of the shift register. The original circuit has a rotary encoder to set the light intensity and the current time. The new circuit will only use the rotary encoder to set the light intensity.
 
 ![](led%20strip%20clock%20pcb-render.jpg)
+
+My [Kicad library](https://github.com/atoomnetmarc/ATOOMNETKICAD) is used in this project.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

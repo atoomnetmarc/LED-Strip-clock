@@ -6,8 +6,8 @@ const int latchPin = 15;
 
 void setup()
 {
-    digitalWrite(12, LOW);
-    pinMode(12, OUTPUT);
+    digitalWrite(16, LOW);
+    pinMode(16, OUTPUT);
 
     digitalWrite(2, HIGH);
     pinMode(2, OUTPUT);
