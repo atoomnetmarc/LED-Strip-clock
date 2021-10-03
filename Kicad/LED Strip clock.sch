@@ -5,7 +5,7 @@ $Descr A3 16535 11693
 encoding utf-8
 Sheet 1 1
 Title "Driver for LED Strip clock"
-Date "2021-09-11"
+Date "2021-10-03"
 Rev "V1.0"
 Comp "https://github.com/atoomnetmarc/LED-Strip-clock"
 Comment1 ""
@@ -2259,7 +2259,7 @@ U 1 1 60BAE561
 P 5650 1450
 F 0 "U9" H 5650 1692 50  0000 C CNN
 F 1 "L7805" H 5650 1601 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:TO-252-2" H 5675 1300 50  0001 L CIN
+F 2 "Package_TO_SOT_SMD:TO-263-2" H 5675 1300 50  0001 L CIN
 F 3 "http://www.st.com/content/ccc/resource/technical/document/datasheet/41/4f/b3/b0/12/d4/47/88/CD00000444.pdf/files/CD00000444.pdf/jcr:content/translations/en.CD00000444.pdf" H 5650 1400 50  0001 C CNN
 	1    5650 1450
 	1    0    0    -1  
