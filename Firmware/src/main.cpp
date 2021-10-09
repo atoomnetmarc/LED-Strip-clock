@@ -1,24 +1,52 @@
+/*
+
+Copyright 2021 Marc Ketel
+SPDX-License-Identifier: Apache-2.0
+
+*/
+
+#include <sys/time.h>
+
 #include <Arduino.h>
 
-const int dataPin = 13;
-const int clockPin = 14;
-const int latchPin = 15;
+#include <Wire.h>
+
+#include <coredecls.h>
+#include <time.h>
+#include <TZ.h>
+
+#include "config.h"
+#include "wific.h"
+
+void time_is_set(bool from_sntp)
+{
+    Serial.println("The NTP server was called!");
+}
 
 void setup()
 {
-    digitalWrite(16, LOW);
-    pinMode(16, OUTPUT);
-
-    digitalWrite(2, HIGH);
-    pinMode(2, OUTPUT);
-    delay(500);
+    Wire.begin(SDA, SCL);
 
     Serial.begin(115200);
-    Serial.println("Hello");
+    Serial.println(F("Booting"));
 
-    pinMode(latchPin, OUTPUT);
-    pinMode(clockPin, OUTPUT);
-    pinMode(dataPin, OUTPUT);
+    settimeofday_cb(time_is_set);
+    configTime(TIMEZONE, NTP_SERVER);
+
+    digitalWrite(PIN_BUFFER_NOT_ENABLE, LOW);
+    pinMode(PIN_BUFFER_NOT_ENABLE, OUTPUT);
+
+    digitalWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE, HIGH);
+    pinMode(PIN_SHIFT_NOT_OUTPUT_ENABLE, OUTPUT);
+    analogWriteRange(1023);
+    analogWriteFreq(2000);
+    delay(500);
+
+    pinMode(PIN_SHIFT_LATCH, OUTPUT);
+    pinMode(PIN_SHIFT_CLOCK, OUTPUT);
+    pinMode(PIN_SHIFT_DATA, OUTPUT);
+
+    WificSetup();
 }
 
 const char digits[] = {
@@ -36,26 +64,81 @@ const char digits[] = {
 
 void loop()
 {
-    delay(500);
+    static uint32_t timer = 0;
 
-    static uint8_t temp = 0;
+    int16_t remainingms = 0;
 
-    digitalWrite(latchPin, LOW);
-    uint8_t d = digits[temp];
-    if (temp % 3 == 0)
-        d |= 0b10000000;
-    shiftOut(dataPin, clockPin, MSBFIRST, d);
-    digitalWrite(latchPin, HIGH);
-    Serial.println(temp);
-
-    temp++;
-    if (temp > 9)
-        temp = 0;
-
-    static uint8_t single = 0;
-    if (single == 0)
+    if (timer <= millis())
     {
-        single = 1;
-        analogWrite(2, 1000);
+        time_t now;
+        time(&now);
+
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        int16_t milliseconds = tv.tv_usec / 1000;
+
+        remainingms = 1000 - milliseconds;
+        if (remainingms == 0)
+            remainingms = 1000;
+
+        timer = millis() + remainingms;
+
+        tm timeInfo;
+        localtime_r(&now, &timeInfo);
+
+        digitalWrite(PIN_SHIFT_LATCH, LOW);
+
+        for (uint8_t i = 0; i < 6; i++)
+        {
+            uint8_t d = 0;
+
+            if (i == 5)
+                d = (timeInfo.tm_hour / 10U) % 10;
+
+            if (i == 4)
+                d = (timeInfo.tm_hour / 1U) % 10;
+
+            if (i == 3)
+                d = (timeInfo.tm_min / 10U) % 10;
+
+            if (i == 2)
+                d = (timeInfo.tm_min / 1U) % 10;
+
+            if (i == 1)
+                d = (timeInfo.tm_sec / 10U) % 10;
+
+            if (i == 0)
+                d = (timeInfo.tm_sec / 1U) % 10;
+
+            shiftOut(PIN_SHIFT_DATA, PIN_SHIFT_CLOCK, MSBFIRST, digits[d]);
+        }
+
+        digitalWrite(PIN_SHIFT_LATCH, HIGH);
+
+        static uint8_t single = 0;
+        if (single == 0)
+        {
+            Serial.println("Setting brightness");
+            single = 1;
+            analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE, 950);
+        }
+
+        Serial.print(timeInfo.tm_year + 1900);
+        Serial.print(F("-"));
+        Serial.print(timeInfo.tm_mon);
+        Serial.print(F("-"));
+        Serial.print(timeInfo.tm_mday);
+        Serial.print(F(" "));
+        Serial.print(timeInfo.tm_hour);
+        Serial.print(F(":"));
+        Serial.print(timeInfo.tm_min);
+        Serial.print(F(":"));
+        Serial.print(timeInfo.tm_sec);
+        Serial.print(F("."));
+        Serial.print(milliseconds);
+        Serial.println();
     }
+
+    WiFicLoop();
 }
