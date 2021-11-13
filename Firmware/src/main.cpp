@@ -23,6 +23,11 @@ void time_is_set(bool from_sntp)
     Serial.println("The NTP server was called!");
 }
 
+uint32_t sntp_update_delay_MS_rfc_not_less_than_15000 ()
+{
+  return 24 * 60 * 60 * 1000UL; // 24 hours
+}
+
 void setup()
 {
     Wire.begin(SDA, SCL);

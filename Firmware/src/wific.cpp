@@ -11,6 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 #include "config.h"
 #include "ota.h"
 
+
 WiFiEventHandler stationModeGotIPHandler;
 void onStationModeGotIP(const WiFiEventStationModeGotIP &evt)
 {
@@ -18,6 +19,10 @@ void onStationModeGotIP(const WiFiEventStationModeGotIP &evt)
     Serial.println(WiFi.localIP());
 
     OTASetup();
+    //MqttOnWifiConnect();
+    //WebserverOnWifiConnect();
+
+    //event.Fire(EVENT_WIFI);
 }
 
 WiFiEventHandler stationModeConnectedHandler;
@@ -31,6 +36,9 @@ WiFiEventHandler stationModeDisconnectedHandler;
 void onStationModeDisconnected(const WiFiEventStationModeDisconnected &evt)
 {
     Serial.println(F("WiFi got disconnected."));
+    //MqttOnWifiDisconnect();
+
+    //event.Fire(EVENT_WIFI);
 }
 
 void WificSetup()
