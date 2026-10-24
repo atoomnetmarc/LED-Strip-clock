@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LED Strip Clock</title>
+    <style>
+      :root {
+        --bg: #111;
+        --fg: #eee;
+        --card: #1d1d1d;
+        --acc: #4aa3ff;
+        --err: #ff5a5a;
+        --ok: #4ad07a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 1rem;
+        max-width: 640px;
+        margin-inline: auto;
+      }
+      h1 {
+        font-size: 1.3rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin-top: 1.5rem;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 0.2rem 0.4rem;
+        vertical-align: top;
+      }
+      td:first-child {
+        color: #9ab;
+        white-space: nowrap;
+      }
+      input,
+      button {
+        font: inherit;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #262626;
+        color: var(--fg);
+        padding: 0.45rem 0.6rem;
+      }
+      input {
+        width: 100%;
+      }
+      button {
+        background: var(--acc);
+        color: #000;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: #333;
+        color: var(--fg);
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+      .row {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.6rem;
+      }
+      .msg {
+        margin-top: 0.6rem;
+        font-size: 0.9rem;
+        min-height: 1.2em;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .err {
+        color: var(--err);
+      }
+      .hidden {
+        display: none;
+      }
+      #clock {
+        font-size: 2.4rem;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        letter-spacing: 0.08em;
+      }
+      label {
+        display: block;
+        margin-top: 0.6rem;
+        font-size: 0.85rem;
+        color: #9ab;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>LED Strip Clock</h1>
+
+    <div class="card">
+      <div id="clock">&ndash;:&ndash;:&ndash;</div>
+      <table id="status">
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card hidden" id="loginCard">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <label for="loginPassword">Password</label>
+        <input
+          type="password"
+          id="loginPassword"
+          autocomplete="current-password"
+        />
+        <div class="row"><button type="submit">Log in</button></div>
+        <div class="msg" id="loginMsg"></div>
+      </form>
+    </div>
+
+    <div class="card hidden" id="configCard">
+      <h2>Settings</h2>
+      <form id="configForm">
+        <label for="cfgSsid">WiFi SSID</label>
+        <input id="cfgSsid" maxlength="32" />
+        <label for="cfgWifiPassword">WiFi password</label>
+        <input
+          id="cfgWifiPassword"
+          type="password"
+          autocomplete="new-password"
+        />
+        <label for="cfgNtp">NTP server</label>
+        <input id="cfgNtp" maxlength="64" />
+        <label for="cfgTimezone">Timezone (POSIX string)</label>
+        <input id="cfgTimezone" maxlength="64" />
+        <label for="cfgHostname">Hostname</label>
+        <input id="cfgHostname" maxlength="32" />
+        <label for="cfgPassword">Admin password (blank = keep)</label>
+        <input id="cfgPassword" type="password" autocomplete="new-password" />
+        <label for="cfgBrightness">Brightness (0-100%)</label>
+        <input id="cfgBrightness" type="number" min="0" max="100" />
+        <div class="row">
+          <button type="submit">Save & reboot</button>
+          <button type="button" class="secondary" id="logoutBtn">
+            Log out
+          </button>
+        </div>
+        <div class="msg" id="configMsg"></div>
+      </form>
+    </div>
+
+    <div class="card hidden" id="otaCard">
+      <h2>Firmware update</h2>
+      <form id="otaForm">
+        <input type="file" id="otaFile" accept=".bin" required />
+        <div class="row"><button type="submit">Upload & flash</button></div>
+        <div class="msg" id="otaMsg"></div>
+      </form>
+    </div>
+
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+      let portal = false;
+
+      function msg(id, text, ok) {
+        const el = $(id);
+        el.textContent = text;
+        el.className = "msg " + (ok ? "ok" : "err");
+      }
+
+      async function api(path, opts) {
+        const res = await fetch(path, opts);
+        const text = await res.text();
+        let body = null;
+        try {
+          body = JSON.parse(text);
+        } catch (e) {
+          /* not json */
+        }
+        return { status: res.status, body, text };
+      }
+
+      function showAuthedUI(authed) {
+        $("configCard").classList.toggle("hidden", !authed);
+        $("otaCard").classList.toggle("hidden", !authed);
+        $("loginCard").classList.toggle("hidden", authed || portal);
+      }
+
+      async function refreshStatus() {
+        try {
+          const { status, body } = await api("/api/status");
+          if (status !== 200 || !body) return;
+          portal = !!body.portal;
+          $("clock").textContent = body.time || "--:--:--";
+          const rows = [
+            ["Date", body.date],
+            ["Time source", body.timeSource],
+            ["Last NTP sync", body.lastNtpSync],
+            ["WiFi", body.wifi],
+            ["RSSI", body.rssi],
+            ["IP", body.ip],
+            ["Hostname", body.hostname],
+            ["Firmware", body.firmware],
+            ["Uptime", body.uptime],
+            ["Free heap", body.freeHeap],
+            ["Brightness", body.brightness],
+            ["RTC", body.rtc],
+          ].filter(([, v]) => v !== undefined && v !== null);
+          $("status").tBodies[0].innerHTML = rows
+            .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+            .join("");
+          showAuthedUI(!!body.authed);
+          if (body.authed && !$("cfgSsid").value) loadConfig();
+        } catch (e) {
+          /* server busy (e.g. during OTA) */
+        }
+      }
+
+      async function loadConfig() {
+        const { status, body } = await api("/api/config");
+        if (status !== 200 || !body) return;
+        $("cfgSsid").value = body.ssid || "";
+        $("cfgWifiPassword").value = "";
+        $("cfgWifiPassword").placeholder = body.wifiPasswordSet
+          ? "(unchanged)"
+          : "";
+        $("cfgNtp").value = body.ntpServer || "";
+        $("cfgTimezone").value = body.timezone || "";
+        $("cfgHostname").value = body.hostname || "";
+        $("cfgBrightness").value = body.brightness;
+      }
+
+      $("loginForm").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const { status, body } = await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: $("loginPassword").value }),
+        });
+        if (status === 200) {
+          $("loginPassword").value = "";
+          msg("loginMsg", "", true);
+          showAuthedUI(true);
+          loadConfig();
+        } else {
+          msg("loginMsg", (body && body.error) || "Login failed", false);
+        }
+      });
+
+      $("logoutBtn").addEventListener("click", async () => {
+        await api("/api/logout", { method: "POST" });
+        showAuthedUI(false);
+      });
+
+      $("configForm").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const payload = {
+          ssid: $("cfgSsid").value,
+          ntpServer: $("cfgNtp").value,
+          timezone: $("cfgTimezone").value,
+          hostname: $("cfgHostname").value,
+          brightness: parseInt($("cfgBrightness").value, 10) || 0,
+        };
+        const wifiPassword = $("cfgWifiPassword").value;
+        if (wifiPassword) payload.wifiPassword = wifiPassword;
+        const adminPassword = $("cfgPassword").value;
+        if (adminPassword) payload.adminPassword = adminPassword;
+        const { status, body } = await api("/api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (status === 200) {
+          msg("configMsg", "Saved. Rebooting...", true);
+          setTimeout(() => {
+            location.href = "/";
+          }, 4000);
+        } else {
+          msg("configMsg", (body && body.error) || "Save failed", false);
+        }
+      });
+
+      $("otaForm").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const file = $("otaFile").files[0];
+        if (!file) return;
+        msg(
+          "otaMsg",
+          "Uploading " + file.name + " (" + file.size + " bytes)...",
+          true,
+        );
+        try {
+          const { status, text } = await api("/api/ota", {
+            method: "POST",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: file,
+          });
+          if (status === 200) {
+            msg("otaMsg", text || "Flash success, rebooting...", true);
+            setTimeout(() => {
+              location.href = "/";
+            }, 8000);
+          } else {
+            msg("otaMsg", text || "Upload failed", false);
+          }
+        } catch (e) {
+          msg("otaMsg", "Connection lost (device is rebooting?)", false);
+        }
+      });
+
+      refreshStatus();
+      setInterval(refreshStatus, 5000);
+    </script>
+  </body>
+</html>

@@ -1,9 +1,10 @@
-/*
-
-Copyright 2021 Marc Ketel
-SPDX-License-Identifier: Apache-2.0
-
-*/
+/**
+ * @file main.cpp
+ * @brief LED strip clock firmware entry point
+ *
+ * @copyright Marc Ketel
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #include <sys/time.h>
 
@@ -13,31 +14,49 @@ SPDX-License-Identifier: Apache-2.0
 
 #include <coredecls.h>
 #include <time.h>
-#include <TZ.h>
 
-#include "config.h"
-#include "wific.h"
+#include "ConfigStore.h"
+#include "Log.h"
+#include "Pins.h"
+#include "SerialCliCommands.h"
+#include "WebServerService.h"
+#include "WiFiService.h"
+#include "utils/SerialCli.h"
 
-void time_is_set(bool from_sntp)
-{
-    Serial.println("The NTP server was called!");
+void time_is_set(bool from_sntp) {
+    Serial.println(F("The NTP server was called!"));
+    webserver::noteNtpSync();
 }
 
-uint32_t sntp_update_delay_MS_rfc_not_less_than_15000 ()
-{
-  return 24 * 60 * 60 * 1000UL; // 24 hours
+uint32_t sntp_update_delay_MS_rfc_not_less_than_15000() {
+    return 24 * 60 * 60 * 1000UL; // 24 hours
 }
 
-void setup()
-{
+static cli::SerialCli serialCli([](const char *data, size_t len) {
+    Serial.write(data, len);
+});
+
+static const char TAG[] = "main";
+
+void setup() {
+    Serial.begin(115200);
+    delay(100);
+    LOGI(TAG, "Booting");
+
+    LOGI(TAG, "Wire.begin");
     Wire.begin(SDA, SCL);
 
-    Serial.begin(115200);
-    Serial.println(F("Booting"));
+    LOGI(TAG, "configstore::begin");
+    configstore::begin();
+    LOGI(TAG, "configstore::begin done");
 
+    LOGI(TAG, "configTime tz=%s ntp=%s", configstore::config.timezone,
+         configstore::config.ntpServer);
     settimeofday_cb(time_is_set);
-    configTime(TIMEZONE, NTP_SERVER);
+    configTime(configstore::config.timezone, configstore::config.ntpServer);
+    LOGI(TAG, "configTime done");
 
+    LOGI(TAG, "pin setup");
     digitalWrite(PIN_BUFFER_NOT_ENABLE, LOW);
     pinMode(PIN_BUFFER_NOT_ENABLE, OUTPUT);
 
@@ -50,8 +69,18 @@ void setup()
     pinMode(PIN_SHIFT_LATCH, OUTPUT);
     pinMode(PIN_SHIFT_CLOCK, OUTPUT);
     pinMode(PIN_SHIFT_DATA, OUTPUT);
+    LOGI(TAG, "pin setup done");
 
-    WificSetup();
+    LOGI(TAG, "wifi::setup");
+    wifi::setup();
+    LOGI(TAG, "wifi::setup done");
+
+    LOGI(TAG, "webserver::setup");
+    webserver::setup();
+    LOGI(TAG, "webserver::setup done");
+
+    cli::registerCommands(serialCli);
+    LOGI(TAG, "setup complete, free heap=%u", ESP.getFreeHeap());
 }
 
 const char digits[] = {
@@ -67,14 +96,12 @@ const char digits[] = {
     0b01101111  // 9
 };
 
-void loop()
-{
+void loop() {
     static uint32_t timer = 0;
 
     int16_t remainingms = 0;
 
-    if (timer <= millis())
-    {
+    if (timer <= millis()) {
         time_t now;
         time(&now);
 
@@ -84,8 +111,9 @@ void loop()
         int16_t milliseconds = tv.tv_usec / 1000;
 
         remainingms = 1000 - milliseconds;
-        if (remainingms == 0)
+        if (remainingms == 0) {
             remainingms = 1000;
+        }
 
         timer = millis() + remainingms;
 
@@ -94,56 +122,52 @@ void loop()
 
         digitalWrite(PIN_SHIFT_LATCH, LOW);
 
-        for (uint8_t i = 0; i < 6; i++)
-        {
+        for (uint8_t i = 0; i < 6; i++) {
             uint8_t d = 0;
 
-            if (i == 5)
+            if (i == 5) {
                 d = (timeInfo.tm_hour / 10U) % 10;
+            }
 
-            if (i == 4)
+            if (i == 4) {
                 d = (timeInfo.tm_hour / 1U) % 10;
+            }
 
-            if (i == 3)
+            if (i == 3) {
                 d = (timeInfo.tm_min / 10U) % 10;
+            }
 
-            if (i == 2)
+            if (i == 2) {
                 d = (timeInfo.tm_min / 1U) % 10;
+            }
 
-            if (i == 1)
+            if (i == 1) {
                 d = (timeInfo.tm_sec / 10U) % 10;
+            }
 
-            if (i == 0)
+            if (i == 0) {
                 d = (timeInfo.tm_sec / 1U) % 10;
+            }
 
             shiftOut(PIN_SHIFT_DATA, PIN_SHIFT_CLOCK, MSBFIRST, digits[d]);
         }
 
         digitalWrite(PIN_SHIFT_LATCH, HIGH);
 
-        static uint8_t single = 0;
-        if (single == 0)
-        {
-            Serial.println("Setting brightness");
-            single = 1;
-            analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE, 950);
+        static bool brightnessSet = false;
+        if (!brightnessSet) {
+            Serial.println(F("Setting brightness"));
+            brightnessSet = true;
+            analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
+                        configstore::pwmFromBrightness(configstore::config.brightness));
         }
 
-        Serial.print(timeInfo.tm_year + 1900);
-        Serial.print(F("-"));
-        Serial.print(timeInfo.tm_mon);
-        Serial.print(F("-"));
-        Serial.print(timeInfo.tm_mday);
-        Serial.print(F(" "));
-        Serial.print(timeInfo.tm_hour);
-        Serial.print(F(":"));
-        Serial.print(timeInfo.tm_min);
-        Serial.print(F(":"));
-        Serial.print(timeInfo.tm_sec);
-        Serial.print(F("."));
-        Serial.print(milliseconds);
-        Serial.println();
     }
 
-    WiFicLoop();
+    while (Serial.available()) {
+        serialCli.feed(Serial.read());
+    }
+
+    wifi::loop();
+    webserver::loop();
 }
