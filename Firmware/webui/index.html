@@ -221,6 +221,7 @@
             ["Free heap", body.freeHeap],
             ["Brightness", body.brightness],
             ["RTC", body.rtc],
+            ["Power", body.power],
           ].filter(([, v]) => v !== undefined && v !== null);
           $("status").tBodies[0].innerHTML = rows
             .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)

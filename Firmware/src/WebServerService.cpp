@@ -15,9 +15,10 @@
 #include <Wire.h>
 #include <time.h>
 
-#include "WebContent.h"
 #include "ConfigStore.h"
 #include "Log.h"
+#include "PowerMonitor.h"
+#include "WebContent.h"
 
 namespace webserver {
     ESP8266WebServer server(80);
@@ -166,6 +167,16 @@ namespace webserver {
             strlcpy(wifiBuf, "disconnected", sizeof(wifiBuf));
         }
 
+        char powerBuf[48];
+        if (powermonitor::present() && powermonitor::sample()) {
+            snprintf(powerBuf, sizeof(powerBuf), "%.2f V, %.0f mA, %.1f W",
+                     powermonitor::busVoltage(),
+                     powermonitor::currentMilliAmps(),
+                     powermonitor::powerMilliWatts() / 1000.0f);
+        } else {
+            strlcpy(powerBuf, "not found", sizeof(powerBuf));
+        }
+
         char uptimeBuf[24];
         uint32_t up = millis() / 1000;
         snprintf(uptimeBuf, sizeof(uptimeBuf), "%luh%02lum",
@@ -179,7 +190,7 @@ namespace webserver {
                  "\"lastNtpSync\":\"%s\",\"wifi\":\"%s\",\"rssi\":%d,"
                  "\"ip\":\"%s\",\"hostname\":\"%s\",\"firmware\":\"%s %s\","
                  "\"uptime\":\"%s\",\"freeHeap\":%u,\"brightness\":%u,"
-                 "\"rtc\":\"%s\"}",
+                 "\"rtc\":\"%s\",\"power\":\"%s\"}",
                  portal ? "true" : "false",
                  authorized() ? "true" : "false",
                  timeBuf, dateBuf, timeSource,
@@ -188,7 +199,8 @@ namespace webserver {
                  configstore::config.hostname,
                  __DATE__, __TIME__,
                  uptimeBuf, ESP.getFreeHeap(), configstore::config.brightness,
-                 rtcPresent ? "present" : "not found");
+                 rtcPresent ? "present" : "not found",
+                 powerBuf);
 
         server.send(200, "application/json", json);
     }

@@ -18,6 +18,7 @@
 #include "ConfigStore.h"
 #include "Log.h"
 #include "Pins.h"
+#include "PowerMonitor.h"
 #include "SerialCliCommands.h"
 #include "WebServerService.h"
 #include "WiFiService.h"
@@ -70,6 +71,10 @@ void setup() {
     pinMode(PIN_SHIFT_CLOCK, OUTPUT);
     pinMode(PIN_SHIFT_DATA, OUTPUT);
     LOGI(TAG, "pin setup done");
+
+    LOGI(TAG, "powermonitor::begin");
+    powermonitor::begin();
+    LOGI(TAG, "powermonitor::begin done");
 
     LOGI(TAG, "wifi::setup");
     wifi::setup();
@@ -161,7 +166,6 @@ void loop() {
             analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
                         configstore::pwmFromBrightness(configstore::config.brightness));
         }
-
     }
 
     while (Serial.available()) {

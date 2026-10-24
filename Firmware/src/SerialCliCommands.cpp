@@ -19,6 +19,7 @@
 
 #include "ConfigStore.h"
 #include "Pins.h"
+#include "PowerMonitor.h"
 #include "WebServerService.h"
 #include "WiFiService.h"
 
@@ -316,6 +317,29 @@ namespace cli {
             configTime(configstore::config.timezone, configstore::config.ntpServer);
         }
 
+        void cmdPower(int argc, char **argv) {
+            (void)argc;
+            (void)argv;
+
+            if (!powermonitor::present()) {
+                print("power: INA219 not found");
+                return;
+            }
+
+            if (!powermonitor::sample()) {
+                print("power: read failed");
+                return;
+            }
+
+            char line[96];
+            snprintf(line, sizeof(line), "bus: %.3f V", powermonitor::busVoltage());
+            print(line);
+            snprintf(line, sizeof(line), "current: %.1f mA", powermonitor::currentMilliAmps());
+            print(line);
+            snprintf(line, sizeof(line), "power: %.1f mW", powermonitor::powerMilliWatts());
+            print(line);
+        }
+
     } // namespace
 
     void registerCommands(SerialCli &cli) {
@@ -329,6 +353,7 @@ namespace cli {
         cli.registerCommand({"brightness", cmdBrightness, "Get/set display brightness in %: brightness [0-100] [save]"});
         cli.registerCommand({"config", cmdConfig, "Show/change config: config | config set <key> <value>"});
         cli.registerCommand({"ntp", cmdNtp, "Show time/NTP status and force resync"});
+        cli.registerCommand({"power", cmdPower, "INA219 bus voltage, current and power"});
     }
 
 } // namespace cli
