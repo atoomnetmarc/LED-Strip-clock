@@ -20,6 +20,7 @@
 #include "ConfigStore.h"
 #include "Pins.h"
 #include "PowerMonitor.h"
+#include "RtcService.h"
 #include "WebServerService.h"
 #include "WiFiService.h"
 
@@ -340,6 +341,62 @@ namespace cli {
             print(line);
         }
 
+        void cmdRtc(int argc, char **argv) {
+            if (!rtc::present()) {
+                print("rtc: DS3231 not found");
+                return;
+            }
+
+            if (argc >= 2 && strcmp(argv[1], "set") == 0) {
+                if (rtc::syncFromSystem()) {
+                    print("rtc: updated from system clock");
+                } else {
+                    print("rtc: write failed");
+                }
+                return;
+            }
+
+            if (argc >= 2 && strcmp(argv[1], "temp") == 0) {
+                char line[48];
+                snprintf(line, sizeof(line), "temperature: %.2f C", rtc::temperature());
+                print(line);
+                return;
+            }
+
+            if (argc >= 2) {
+                print("usage: rtc | rtc set | rtc temp");
+                return;
+            }
+
+            struct tm rtcTm;
+            char line[96];
+
+            if (rtc::getTime(rtcTm)) {
+                char tbuf[32];
+                strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", &rtcTm);
+                snprintf(line, sizeof(line), "rtc time (UTC): %s", tbuf);
+            } else {
+                snprintf(line, sizeof(line), "rtc time: read failed");
+            }
+            print(line);
+
+            time_t now = time(nullptr);
+            struct tm sysTm;
+            gmtime_r(&now, &sysTm);
+            char sbuf[32];
+            strftime(sbuf, sizeof(sbuf), "%Y-%m-%d %H:%M:%S", &sysTm);
+            snprintf(line, sizeof(line), "system time (UTC): %s", sbuf);
+            print(line);
+
+            int32_t drift = rtc::driftSeconds();
+            snprintf(line, sizeof(line), "drift (rtc - system): %ld s",
+                     static_cast<long>(drift));
+            print(line);
+
+            snprintf(line, sizeof(line), "temperature: %.2f C", rtc::temperature());
+            print(line);
+        }
+
     } // namespace
 
     void registerCommands(SerialCli &cli) {
@@ -354,6 +411,7 @@ namespace cli {
         cli.registerCommand({"config", cmdConfig, "Show/change config: config | config set <key> <value>"});
         cli.registerCommand({"ntp", cmdNtp, "Show time/NTP status and force resync"});
         cli.registerCommand({"power", cmdPower, "INA219 bus voltage, current and power"});
+        cli.registerCommand({"rtc", cmdRtc, "DS3231 status: rtc | rtc set | rtc temp"});
     }
 
 } // namespace cli

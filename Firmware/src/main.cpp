@@ -19,6 +19,7 @@
 #include "Log.h"
 #include "Pins.h"
 #include "PowerMonitor.h"
+#include "RtcService.h"
 #include "SerialCliCommands.h"
 #include "WebServerService.h"
 #include "WiFiService.h"
@@ -27,6 +28,7 @@
 void time_is_set(bool from_sntp) {
     Serial.println(F("The NTP server was called!"));
     webserver::noteNtpSync();
+    rtc::syncFromSystem();
 }
 
 uint32_t sntp_update_delay_MS_rfc_not_less_than_15000() {
@@ -46,6 +48,10 @@ void setup() {
 
     LOGI(TAG, "Wire.begin");
     Wire.begin(SDA, SCL);
+
+    LOGI(TAG, "rtc::begin");
+    rtc::begin();
+    LOGI(TAG, "rtc::begin done");
 
     LOGI(TAG, "configstore::begin");
     configstore::begin();

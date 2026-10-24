@@ -15,6 +15,8 @@
 #include <Wire.h>
 #include <time.h>
 
+#include "RtcService.h"
+
 #include "ConfigStore.h"
 #include "Log.h"
 #include "PowerMonitor.h"
@@ -137,9 +139,8 @@ namespace webserver {
                  static_cast<unsigned>(timeInfo.tm_mon + 1),
                  static_cast<unsigned>(timeInfo.tm_mday));
 
-        // RTC probe: PCF8563 answers at 0x51.
-        Wire.beginTransmission(0x51);
-        bool rtcPresent = Wire.endTransmission() == 0;
+        // RTC presence is probed once at boot by the RtcService (DS3231 @ 0x68).
+        bool rtcPresent = rtc::present();
 
         char timeSource[32];
         if (lastNtpSync != 0 && millis() - lastNtpSync < 2UL * 24 * 60 * 60 * 1000) {
