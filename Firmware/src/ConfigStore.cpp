@@ -55,12 +55,7 @@ namespace configstore {
 
     static void applyJson(const JsonDocument &doc) {
         long b = doc["brightness"] | config.brightness;
-        if (b < 0) {
-            b = 0;
-        } else if (b > 100) {
-            b = 100;
-        }
-        config.brightness = static_cast<uint8_t>(b);
+        config.brightness = clampBrightness(b);
         strlcpy(config.ssid, doc["ssid"] | "", sizeof(config.ssid));
         strlcpy(config.wifiPassword, doc["wifiPassword"] | "", sizeof(config.wifiPassword));
         strlcpy(config.ntpServer, doc["ntpServer"] | config.ntpServer, sizeof(config.ntpServer));

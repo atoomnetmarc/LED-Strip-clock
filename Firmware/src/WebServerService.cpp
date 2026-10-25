@@ -292,9 +292,8 @@ namespace webserver {
             sessionExpiry = 0;
         }
         long brightness;
-        if (jsonGetNumber(b, "brightness", brightness) &&
-            brightness >= 0 && brightness <= 100) {
-            cfg.brightness = static_cast<uint8_t>(brightness);
+        if (jsonGetNumber(b, "brightness", brightness)) {
+            cfg.brightness = configstore::clampBrightness(brightness);
         }
 
         if (!configstore::save()) {

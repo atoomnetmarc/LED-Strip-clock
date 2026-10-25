@@ -13,6 +13,18 @@
 namespace configstore {
     // Display brightness in percent (0-100). The /OE shift-register pin is
     // active-low, so a higher percentage means a lower PWM duty cycle.
+    // Clamp a brightness value to the valid range. The minimum is 1% so the
+    // display never goes fully dark via configuration.
+    inline uint8_t clampBrightness(long percent) {
+        if (percent < 1) {
+            return 1;
+        }
+        if (percent > 100) {
+            return 100;
+        }
+        return static_cast<uint8_t>(percent);
+    }
+
     inline uint16_t pwmFromBrightness(uint8_t percent) {
         if (percent > 100) {
             percent = 100;
@@ -43,4 +55,3 @@ namespace configstore {
     // True when no valid stored config exists (defaults in use).
     bool usingDefaults();
 }
-

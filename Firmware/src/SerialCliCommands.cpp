@@ -26,6 +26,7 @@
 
 namespace cli {
     namespace {
+        bool g_inputDebugEnabled = false;
 
         void print(const char *text) {
             Serial.print(text);
@@ -222,7 +223,7 @@ namespace cli {
                 return;
             }
 
-            configstore::config.brightness = static_cast<uint8_t>(value);
+            configstore::config.brightness = configstore::clampBrightness(value);
             analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
                         configstore::pwmFromBrightness(configstore::config.brightness));
 
@@ -397,7 +398,35 @@ namespace cli {
             print(line);
         }
 
+        void cmdInputDebug(int argc, char **argv) {
+            if (argc < 2) {
+                char line[48];
+                snprintf(line, sizeof(line), "inputdebug: %s",
+                         inputDebugEnabled() ? "on" : "off");
+                print(line);
+                return;
+            }
+
+            if (strcmp(argv[1], "on") == 0) {
+                setInputDebugEnabled(true);
+                print("inputdebug: on");
+            } else if (strcmp(argv[1], "off") == 0) {
+                setInputDebugEnabled(false);
+                print("inputdebug: off");
+            } else {
+                print("usage: inputdebug on|off");
+            }
+        }
+
     } // namespace
+
+    void setInputDebugEnabled(bool enabled) {
+        g_inputDebugEnabled = enabled;
+    }
+
+    bool inputDebugEnabled() {
+        return g_inputDebugEnabled;
+    }
 
     void registerCommands(SerialCli &cli) {
         cli.registerCommand({"status", cmdStatus, "WiFi, portal and time status"});
@@ -412,6 +441,7 @@ namespace cli {
         cli.registerCommand({"ntp", cmdNtp, "Show time/NTP status and force resync"});
         cli.registerCommand({"power", cmdPower, "INA219 bus voltage, current and power"});
         cli.registerCommand({"rtc", cmdRtc, "DS3231 status: rtc | rtc set | rtc temp"});
+        cli.registerCommand({"inputdebug", cmdInputDebug, "Toggle input event debug output: inputdebug on|off"});
     }
 
 } // namespace cli

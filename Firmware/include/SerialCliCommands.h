@@ -13,4 +13,8 @@
 namespace cli {
     // Register all LED strip clock commands on the given CLI instance.
     void registerCommands(SerialCli &cli);
+
+    // Input event debug output toggle (controlled by the 'inputdebug' command).
+    void setInputDebugEnabled(bool enabled);
+    bool inputDebugEnabled();
 }
