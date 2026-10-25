@@ -154,8 +154,35 @@
         <input id="cfgPassword" type="password" autocomplete="new-password" />
         <label for="cfgBrightness">Brightness (0-100%)</label>
         <input id="cfgBrightness" type="number" min="0" max="100" />
+        <label
+          for="cfgNightEnabled"
+          style="
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+          "
+        >
+          <input id="cfgNightEnabled" type="checkbox" style="width: auto" />
+          Night mode (dim window)
+        </label>
+        <div id="nightFields">
+          <label for="cfgNightStart"
+            >Start time (window opens exactly at this time)</label
+          >
+          <input id="cfgNightStart" type="time" />
+          <label for="cfgNightEnd"
+            >End time (window closes exactly at this time)</label
+          >
+          <input id="cfgNightEnd" type="time" />
+          <label for="cfgNightBrightness">Night brightness (0-100%)</label>
+          <input id="cfgNightBrightness" type="number" min="0" max="100" />
+        </div>
         <div class="row">
-          <button type="submit">Save & reboot</button>
+          <button type="submit">Save</button>
+          <button type="button" class="secondary" id="exitApBtn">
+            Exit AP
+          </button>
           <button type="button" class="secondary" id="logoutBtn">
             Log out
           </button>
@@ -220,6 +247,7 @@
             ["Uptime", body.uptime],
             ["Free heap", body.freeHeap],
             ["Brightness", body.brightness],
+            ["Night mode", body.nightActive ? "active" : "off"],
             ["RTC", body.rtc],
             ["Power", body.power],
           ].filter(([, v]) => v !== undefined && v !== null);
@@ -245,7 +273,33 @@
         $("cfgTimezone").value = body.timezone || "";
         $("cfgHostname").value = body.hostname || "";
         $("cfgBrightness").value = body.brightness;
+        $("cfgNightEnabled").checked = !!body.nightEnabled;
+        $("cfgNightStart").value = minutesToTime(body.nightStart);
+        $("cfgNightEnd").value = minutesToTime(body.nightEnd);
+        $("cfgNightBrightness").value = body.nightBrightness;
+        updateNightFields();
       }
+
+      function minutesToTime(m) {
+        m = Number(m) || 0;
+        const h = String(Math.floor(m / 60)).padStart(2, "0");
+        const min = String(m % 60).padStart(2, "0");
+        return h + ":" + min;
+      }
+
+      function timeToMinutes(t) {
+        const [h, m] = (t || "").split(":").map(Number);
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      }
+
+      function updateNightFields() {
+        $("nightFields").style.display = $("cfgNightEnabled").checked
+          ? ""
+          : "none";
+      }
+
+      $("cfgNightEnabled").addEventListener("change", updateNightFields);
 
       $("loginForm").addEventListener("submit", async (ev) => {
         ev.preventDefault();
@@ -277,6 +331,10 @@
           timezone: $("cfgTimezone").value,
           hostname: $("cfgHostname").value,
           brightness: parseInt($("cfgBrightness").value, 10) || 0,
+          nightEnabled: $("cfgNightEnabled").checked,
+          nightStart: timeToMinutes($("cfgNightStart").value) ?? 0,
+          nightEnd: timeToMinutes($("cfgNightEnd").value) ?? 0,
+          nightBrightness: parseInt($("cfgNightBrightness").value, 10) || 0,
         };
         const wifiPassword = $("cfgWifiPassword").value;
         if (wifiPassword) payload.wifiPassword = wifiPassword;
@@ -288,12 +346,21 @@
           body: JSON.stringify(payload),
         });
         if (status === 200) {
-          msg("configMsg", "Saved. Rebooting...", true);
-          setTimeout(() => {
-            location.href = "/";
-          }, 4000);
+          msg("configMsg", "Saved.", true);
         } else {
           msg("configMsg", (body && body.error) || "Save failed", false);
+        }
+      });
+
+      $("exitApBtn").addEventListener("click", async () => {
+        const { status } = await api("/api/exitap", { method: "POST" });
+        if (status === 200) {
+          msg("configMsg", "AP closed, reconnecting...", true);
+          setTimeout(() => {
+            location.href = "/";
+          }, 3000);
+        } else {
+          msg("configMsg", "Exit AP failed", false);
         }
       });
 

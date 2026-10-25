@@ -40,9 +40,37 @@ namespace configstore {
         char timezone[65];
         char hostname[33];
         char adminPassword[65];
+        // Night mode ("dim window"): between startTime and endTime the
+        // nightBrightness applies instead of brightness. startTime >=
+        // endTime means the window wraps midnight; equal times mean an
+        // empty window. Times are minutes since local midnight.
+        bool nightEnabled;
+        uint16_t nightStart;     // minutes since midnight, inclusive
+        uint16_t nightEnd;       // minutes since midnight, exclusive
+        uint8_t nightBrightness; // percent 1-100
     };
 
     extern Config config;
+
+    // True when the dim window covers the given local time of day.
+    // The window starts exactly at nightStart and ends exactly at
+    // nightEnd (start inclusive, end exclusive).
+    inline bool nightActive(uint16_t minutesOfDay) {
+        if (!config.nightEnabled || config.nightStart == config.nightEnd) {
+            return false;
+        }
+        if (config.nightStart < config.nightEnd) {
+            return minutesOfDay >= config.nightStart && minutesOfDay < config.nightEnd;
+        }
+        // Window wraps midnight (e.g. 21:00 -> 07:00).
+        return minutesOfDay >= config.nightStart || minutesOfDay < config.nightEnd;
+    }
+
+    // The brightness that applies right now, given whether the dim
+    // window is active.
+    inline uint8_t activeBrightness(bool night) {
+        return night ? config.nightBrightness : config.brightness;
+    }
 
     // Mount LittleFS and load /config.json; falls back to defaults when the
     // file is absent or invalid, and persists the defaults in that case.

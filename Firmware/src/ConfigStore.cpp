@@ -30,6 +30,10 @@ namespace configstore {
         LOGI(TAG, "loadDefaults: memset");
         memset(&config, 0, sizeof(config));
         config.brightness = 20;
+        config.nightEnabled = false;
+        config.nightStart = 21 * 60; // 21:00
+        config.nightEnd = 7 * 60;    // 07:00
+        config.nightBrightness = 1;
         LOGI(TAG, "loadDefaults: ssid/pw");
         strlcpy(config.ssid, "", sizeof(config.ssid));
         strlcpy(config.wifiPassword, "", sizeof(config.wifiPassword));
@@ -56,6 +60,16 @@ namespace configstore {
     static void applyJson(const JsonDocument &doc) {
         long b = doc["brightness"] | config.brightness;
         config.brightness = clampBrightness(b);
+        config.nightEnabled = doc["nightEnabled"] | config.nightEnabled;
+        long ns = doc["nightStart"] | config.nightStart;
+        long ne = doc["nightEnd"] | config.nightEnd;
+        if (ns >= 0 && ns < 24 * 60) {
+            config.nightStart = static_cast<uint16_t>(ns);
+        }
+        if (ne >= 0 && ne < 24 * 60) {
+            config.nightEnd = static_cast<uint16_t>(ne);
+        }
+        config.nightBrightness = clampBrightness(doc["nightBrightness"] | config.nightBrightness);
         strlcpy(config.ssid, doc["ssid"] | "", sizeof(config.ssid));
         strlcpy(config.wifiPassword, doc["wifiPassword"] | "", sizeof(config.wifiPassword));
         strlcpy(config.ntpServer, doc["ntpServer"] | config.ntpServer, sizeof(config.ntpServer));
@@ -105,6 +119,10 @@ namespace configstore {
     bool save() {
         JsonDocument doc;
         doc["brightness"] = config.brightness;
+        doc["nightEnabled"] = config.nightEnabled;
+        doc["nightStart"] = config.nightStart;
+        doc["nightEnd"] = config.nightEnd;
+        doc["nightBrightness"] = config.nightBrightness;
         doc["ssid"] = config.ssid;
         doc["wifiPassword"] = config.wifiPassword;
         doc["ntpServer"] = config.ntpServer;

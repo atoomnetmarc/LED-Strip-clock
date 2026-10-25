@@ -27,4 +27,8 @@ namespace webserver {
     // Manually start/stop the AP config portal.
     void beginPortal();
     void endPortal();
+
+    // Re-apply network and time settings from the stored config without a
+    // reboot (hostname, timezone/NTP, WiFi reconnect when pending).
+    void applyLiveConfig();
 }

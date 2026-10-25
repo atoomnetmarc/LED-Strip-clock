@@ -207,6 +207,26 @@ namespace cli {
             print(line);
         }
 
+        // Current minutes since local midnight, or -1 when time is not set.
+        static int minutesOfDay() {
+            time_t now = time(nullptr);
+            struct tm timeinfo;
+            localtime_r(&now, &timeinfo);
+            if (timeinfo.tm_year <= (2020 - 1900)) {
+                return -1;
+            }
+            return timeinfo.tm_hour * 60 + timeinfo.tm_min;
+        }
+
+        // Apply the brightness that is active right now (day or night).
+        static void applyActiveBrightness() {
+            const int minutes = minutesOfDay();
+            const bool night = minutes >= 0 && configstore::nightActive(static_cast<uint16_t>(minutes));
+            analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
+                        configstore::pwmFromBrightness(
+                            configstore::activeBrightness(night)));
+        }
+
         void cmdBrightness(int argc, char **argv) {
             if (argc < 2) {
                 char line[64];
@@ -224,8 +244,7 @@ namespace cli {
             }
 
             configstore::config.brightness = configstore::clampBrightness(value);
-            analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
-                        configstore::pwmFromBrightness(configstore::config.brightness));
+            applyActiveBrightness();
 
             if (argc >= 3 && strcmp(argv[2], "save") == 0) {
                 if (configstore::save()) {
@@ -235,6 +254,107 @@ namespace cli {
                 }
             } else {
                 print("ok (not saved, use 'brightness <v> save' to persist)");
+            }
+        }
+
+        // Parse "HH:MM" into minutes since midnight. Returns -1 on error.
+        static int parseTimeOfDay(const char *text) {
+            int hour = 0;
+            int minute = 0;
+            if (sscanf(text, "%2d:%2d", &hour, &minute) != 2 || hour < 0 ||
+                hour > 23 || minute < 0 || minute > 59) {
+                return -1;
+            }
+            return hour * 60 + minute;
+        }
+
+        void cmdNight(int argc, char **argv) {
+            char line[96];
+
+            if (argc < 2) {
+                const int minutes = minutesOfDay();
+                const bool active =
+                    minutes >= 0 && configstore::nightActive(static_cast<uint16_t>(minutes));
+                snprintf(line, sizeof(line), "night: %s (window %s)",
+                         configstore::config.nightEnabled ? "enabled" : "disabled",
+                         active ? "active now" : "inactive now");
+                print(line);
+                snprintf(line, sizeof(line), "start: %02d:%02d, end: %02d:%02d, brightness: %u%%",
+                         configstore::config.nightStart / 60,
+                         configstore::config.nightStart % 60,
+                         configstore::config.nightEnd / 60,
+                         configstore::config.nightEnd % 60,
+                         configstore::config.nightBrightness);
+                print(line);
+                print("usage: night on|off [save]");
+                print("       night start <HH:MM> [save]");
+                print("       night end <HH:MM> [save]");
+                print("       night brightness <0-100> [save]");
+                return;
+            }
+
+            bool save = false;
+            const char *value = nullptr;
+            if (argc >= 3) {
+                if (strcmp(argv[argc - 1], "save") == 0) {
+                    save = true;
+                }
+                if (argc >= 4 || strcmp(argv[1], "on") != 0 && strcmp(argv[1], "off") != 0) {
+                    value = argv[2];
+                }
+            }
+
+            bool ok = false;
+            if (strcmp(argv[1], "on") == 0 && value == nullptr) {
+                configstore::config.nightEnabled = true;
+                ok = true;
+            } else if (strcmp(argv[1], "off") == 0 && value == nullptr) {
+                configstore::config.nightEnabled = false;
+                ok = true;
+            } else if (strcmp(argv[1], "start") == 0 && value != nullptr) {
+                const int minutes = parseTimeOfDay(value);
+                if (minutes >= 0) {
+                    configstore::config.nightStart = static_cast<uint16_t>(minutes);
+                    ok = true;
+                } else {
+                    print("invalid time, use HH:MM");
+                }
+            } else if (strcmp(argv[1], "end") == 0 && value != nullptr) {
+                const int minutes = parseTimeOfDay(value);
+                if (minutes >= 0) {
+                    configstore::config.nightEnd = static_cast<uint16_t>(minutes);
+                    ok = true;
+                } else {
+                    print("invalid time, use HH:MM");
+                }
+            } else if (strcmp(argv[1], "brightness") == 0 && value != nullptr) {
+                const long percent = atol(value);
+                if (percent >= 0 && percent <= 100) {
+                    configstore::config.nightBrightness = configstore::clampBrightness(percent);
+                    ok = true;
+                } else {
+                    print("value out of range (0-100)");
+                }
+            }
+
+            if (!ok) {
+                print("usage: night on|off [save]");
+                print("       night start <HH:MM> [save]");
+                print("       night end <HH:MM> [save]");
+                print("       night brightness <0-100> [save]");
+                return;
+            }
+
+            applyActiveBrightness();
+
+            if (save) {
+                if (configstore::save()) {
+                    print("ok: saved");
+                } else {
+                    print("error: save failed");
+                }
+            } else {
+                print("ok (not saved, append 'save' to persist)");
             }
         }
 
@@ -252,12 +372,21 @@ namespace cli {
                 print(line);
                 snprintf(line, sizeof(line), "brightness: %u", configstore::config.brightness);
                 print(line);
+                snprintf(line, sizeof(line), "night: %s, %02d:%02d-%02d:%02d, brightness %u",
+                         configstore::config.nightEnabled ? "on" : "off",
+                         configstore::config.nightStart / 60,
+                         configstore::config.nightStart % 60,
+                         configstore::config.nightEnd / 60,
+                         configstore::config.nightEnd % 60,
+                         configstore::config.nightBrightness);
+                print(line);
                 return;
             }
 
             if (strcmp(argv[1], "set") != 0 || argc < 4) {
                 print("usage: config | config set <key> <value>");
                 print("keys: ssid, ntpServer, timezone, hostname");
+                print("night mode: use the 'night' command");
                 return;
             }
 
@@ -285,7 +414,8 @@ namespace cli {
             }
 
             if (configstore::save()) {
-                print("ok: saved (reboot to apply)");
+                webserver::applyLiveConfig();
+                print("ok: saved and applied");
             } else {
                 print("error: save failed");
             }
@@ -441,6 +571,7 @@ namespace cli {
         cli.registerCommand({"ntp", cmdNtp, "Show time/NTP status and force resync"});
         cli.registerCommand({"power", cmdPower, "INA219 bus voltage, current and power"});
         cli.registerCommand({"rtc", cmdRtc, "DS3231 status: rtc | rtc set | rtc temp"});
+        cli.registerCommand({"night", cmdNight, "Night mode: night | night on|off [save] | night start|end <HH:MM> [save] | night brightness <0-100> [save]"});
         cli.registerCommand({"inputdebug", cmdInputDebug, "Toggle input event debug output: inputdebug on|off"});
     }
 

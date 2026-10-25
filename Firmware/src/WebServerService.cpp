@@ -29,6 +29,9 @@ namespace webserver {
     bool portal = false;
     uint32_t staDisconnectedSince = 0;
     constexpr uint32_t PORTAL_FALLBACK_DELAY_MS = 30000;
+    // Set when a config POST supplied a new SSID/password so
+    // applyLiveConfig() reconnects STA.
+    bool staReconnectPending = false;
 
     // Single active login session (STA mode).
     char sessionToken[33] = "";
@@ -104,6 +107,25 @@ namespace webserver {
         return true;
     }
 
+    bool jsonGetBool(const char *body, const char *key, bool &out) {
+        char pattern[40];
+        snprintf(pattern, sizeof(pattern), "\"%s\":", key);
+        const char *start = strstr(body, pattern);
+        if (start == nullptr) {
+            return false;
+        }
+        start += strlen(pattern);
+        if (strncmp(start, "true", 4) == 0) {
+            out = true;
+            return true;
+        }
+        if (strncmp(start, "false", 5) == 0) {
+            out = false;
+            return true;
+        }
+        return false;
+    }
+
     bool jsonGetNumber(const char *body, const char *key, long &out) {
         char pattern[40];
         snprintf(pattern, sizeof(pattern), "\"%s\":", key);
@@ -123,6 +145,10 @@ namespace webserver {
     void handleRoot() {
         sendGzipRoot();
     }
+
+    // Re-apply network and time settings from the stored config without a
+    // reboot. Called after a successful config save.
+    void applyLiveConfig();
 
     void handleStatus() {
         time_t now;
@@ -184,6 +210,11 @@ namespace webserver {
                  static_cast<unsigned long>(up / 3600),
                  static_cast<unsigned long>((up % 3600) / 60));
 
+        // Dim window ("night mode") state, recomputed from the local time.
+        const uint16_t minutesOfDay =
+            static_cast<uint16_t>(timeInfo.tm_hour * 60 + timeInfo.tm_min);
+        const bool night = configstore::nightActive(minutesOfDay);
+
         char json[1024];
         snprintf(json, sizeof(json),
                  "{\"portal\":%s,\"authed\":%s,"
@@ -191,6 +222,7 @@ namespace webserver {
                  "\"lastNtpSync\":\"%s\",\"wifi\":\"%s\",\"rssi\":%d,"
                  "\"ip\":\"%s\",\"hostname\":\"%s\",\"firmware\":\"%s %s\","
                  "\"uptime\":\"%s\",\"freeHeap\":%u,\"brightness\":%u,"
+                 "\"nightActive\":%s,"
                  "\"rtc\":\"%s\",\"power\":\"%s\"}",
                  portal ? "true" : "false",
                  authorized() ? "true" : "false",
@@ -200,6 +232,7 @@ namespace webserver {
                  configstore::config.hostname,
                  __DATE__, __TIME__,
                  uptimeBuf, ESP.getFreeHeap(), configstore::config.brightness,
+                 night ? "true" : "false",
                  rtcPresent ? "present" : "not found",
                  powerBuf);
 
@@ -252,10 +285,14 @@ namespace webserver {
         snprintf(json, sizeof(json),
                  "{\"ssid\":\"%s\",\"wifiPasswordSet\":%s,"
                  "\"ntpServer\":\"%s\",\"timezone\":\"%s\","
-                 "\"hostname\":\"%s\",\"brightness\":%u}",
+                 "\"hostname\":\"%s\",\"brightness\":%u,"
+                 "\"nightEnabled\":%s,\"nightStart\":%u,\"nightEnd\":%u,"
+                 "\"nightBrightness\":%u}",
                  cfg.ssid,
                  cfg.wifiPassword[0] != '\0' ? "true" : "false",
-                 cfg.ntpServer, cfg.timezone, cfg.hostname, cfg.brightness);
+                 cfg.ntpServer, cfg.timezone, cfg.hostname, cfg.brightness,
+                 cfg.nightEnabled ? "true" : "false",
+                 cfg.nightStart, cfg.nightEnd, cfg.nightBrightness);
         server.send(200, "application/json", json);
     }
 
@@ -271,10 +308,14 @@ namespace webserver {
 
         char buf[65];
         if (jsonGetString(b, "ssid", buf, sizeof(buf))) {
-            strlcpy(cfg.ssid, buf, sizeof(cfg.ssid));
+            if (strcmp(buf, cfg.ssid) != 0) {
+                strlcpy(cfg.ssid, buf, sizeof(cfg.ssid));
+                staReconnectPending = true;
+            }
         }
         if (jsonGetString(b, "wifiPassword", buf, sizeof(buf)) && buf[0] != '\0') {
             strlcpy(cfg.wifiPassword, buf, sizeof(cfg.wifiPassword));
+            staReconnectPending = true;
         }
         if (jsonGetString(b, "ntpServer", buf, sizeof(buf)) && buf[0] != '\0') {
             strlcpy(cfg.ntpServer, buf, sizeof(cfg.ntpServer));
@@ -296,15 +337,70 @@ namespace webserver {
             cfg.brightness = configstore::clampBrightness(brightness);
         }
 
+        // Night mode ("dim window") settings.
+        bool nightEnabled = cfg.nightEnabled;
+        if (jsonGetBool(b, "nightEnabled", nightEnabled)) {
+            cfg.nightEnabled = nightEnabled;
+        }
+        long nightStart;
+        if (jsonGetNumber(b, "nightStart", nightStart) && nightStart >= 0 &&
+            nightStart < 24 * 60) {
+            cfg.nightStart = static_cast<uint16_t>(nightStart);
+        }
+        long nightEnd;
+        if (jsonGetNumber(b, "nightEnd", nightEnd) && nightEnd >= 0 &&
+            nightEnd < 24 * 60) {
+            cfg.nightEnd = static_cast<uint16_t>(nightEnd);
+        }
+        long nightBrightness;
+        if (jsonGetNumber(b, "nightBrightness", nightBrightness)) {
+            cfg.nightBrightness = configstore::clampBrightness(nightBrightness);
+        }
+
         if (!configstore::save()) {
             server.send(500, "application/json", "{\"error\":\"eeprom write failed\"}");
             return;
         }
 
+        // Apply the new config live; no reboot needed.
+        applyLiveConfig();
         server.send(200, "application/json", "{\"ok\":true}");
-        // Reboot so WiFi, NTP and hostname come up with the new config.
-        delay(500);
-        ESP.restart();
+    }
+
+    void applyLiveConfig() {
+        static const char TAG[] = "http";
+        const auto &cfg = configstore::config;
+
+        WiFi.hostname(cfg.hostname);
+
+        // Reconfigure NTP/timezone; takes effect on the next sync.
+        configTime(cfg.timezone, cfg.ntpServer);
+
+        // Reconnect when a new SSID/password was supplied.
+        if (staReconnectPending) {
+            staReconnectPending = false;
+            if (cfg.ssid[0] != '\0') {
+                LOGI(TAG, "Reconnecting WiFi to '%s'", cfg.ssid);
+                WiFi.disconnect(false);
+                WiFi.mode(WIFI_STA);
+                WiFi.hostname(cfg.hostname);
+                WiFi.begin(cfg.ssid, cfg.wifiPassword);
+            }
+        }
+    }
+
+    void handleExitAp() {
+        if (!requireAuth()) {
+            return;
+        }
+        if (portal) {
+            endPortal();
+            const auto &cfg = configstore::config;
+            if (cfg.ssid[0] != '\0') {
+                WiFi.begin(cfg.ssid, cfg.wifiPassword);
+            }
+        }
+        server.send(200, "application/json", "{\"ok\":true}");
     }
 
     void handleOtaUpload() {
@@ -416,6 +512,7 @@ namespace webserver {
         server.on("/api/logout", HTTP_POST, handleLogout);
         server.on("/api/config", HTTP_GET, handleConfigGet);
         server.on("/api/config", HTTP_POST, handleConfigPost);
+        server.on("/api/exitap", HTTP_POST, handleExitAp);
         server.on("/api/ota", HTTP_POST, handleOtaPost, handleOtaUpload);
         server.onNotFound(handleNotFound);
         // Needed so server.header("Cookie") works for session validation.

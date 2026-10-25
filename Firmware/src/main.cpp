@@ -53,6 +53,9 @@ enum class DisplayMode : uint8_t {
 
 static DisplayMode displayMode = DisplayMode::Time;
 static uint32_t displayModeUntil = 0;
+// True while the dim window ("night mode") is active. Updated once per
+// second in loop(); the encoder edits the brightness of the active mode.
+static bool nightNow = false;
 // Next display refresh deadline; shared with showBrightness() so it can
 // force an immediate redraw.
 static uint32_t displayTimer = 0;
@@ -72,7 +75,22 @@ static void showBrightness() {
 
 static void applyBrightness() {
     analogWrite(PIN_SHIFT_NOT_OUTPUT_ENABLE,
-                configstore::pwmFromBrightness(configstore::config.brightness));
+                configstore::pwmFromBrightness(
+                    configstore::activeBrightness(nightNow)));
+}
+
+// Re-evaluate the dim window against the current local time. When the
+// window boundary is crossed, any unsaved temporary brightness change is
+// discarded: the stored brightness of the new mode applies.
+static void updateNightState(const struct tm &timeInfo) {
+    const uint16_t minutesOfDay =
+        static_cast<uint16_t>(timeInfo.tm_hour * 60 + timeInfo.tm_min);
+    const bool night = configstore::nightActive(minutesOfDay);
+    if (night != nightNow) {
+        nightNow = night;
+        applyBrightness();
+        LOGI(TAG, "Night mode %s", night ? "on" : "off");
+    }
 }
 
 static void handleRotaryEvent(rotary::Event event) {
@@ -102,20 +120,23 @@ static void handleRotaryEvent(rotary::Event event) {
 
     switch (event) {
         case rotary::Event::Cw:
-        case rotary::Event::Ccw:
+        case rotary::Event::Ccw: {
             if (webserver::portalActive()) {
                 return; // no brightness control while the AP is open
             }
+            // Edit the brightness of the active mode (day or night).
+            uint8_t *target = nightNow
+                                  ? &configstore::config.nightBrightness
+                                  : &configstore::config.brightness;
             if (event == rotary::Event::Cw) {
-                configstore::config.brightness =
-                    configstore::clampBrightness(configstore::config.brightness + 1L);
+                *target = configstore::clampBrightness(*target + 1L);
             } else {
-                configstore::config.brightness =
-                    configstore::clampBrightness(configstore::config.brightness - 1L);
+                *target = configstore::clampBrightness(*target - 1L);
             }
             applyBrightness();
             showBrightness();
             break;
+        }
 
         case rotary::Event::Press:
             if (webserver::portalActive()) {
@@ -233,7 +254,8 @@ void loop() {
             // patterns + pad would blank kDigitCount entries and run one
             // byte past the end of the patterns array.
             char text[5];
-            snprintf(text, sizeof(text), "%u", configstore::config.brightness);
+            snprintf(text, sizeof(text), "%u",
+                     configstore::activeBrightness(nightNow));
             char padded[display::kDigitCount + 1] = "      ";
             const uint8_t len = static_cast<uint8_t>(strlen(text));
             const uint8_t pad = (4 - len) / 2;
@@ -241,6 +263,7 @@ void loop() {
             display::textPatterns(patterns, padded);
         } else {
             display::timePatterns(patterns, timeInfo);
+            updateNightState(timeInfo);
         }
 
         digitalWrite(PIN_SHIFT_LATCH, LOW);
