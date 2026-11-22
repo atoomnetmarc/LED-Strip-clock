@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "utils/SerialCli.h"
+#include "SerialCli.h"
 
 namespace cli {
     // Register all LED strip clock commands on the given CLI instance.

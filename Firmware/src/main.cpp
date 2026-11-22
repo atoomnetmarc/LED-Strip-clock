@@ -25,7 +25,7 @@
 #include "SerialCliCommands.h"
 #include "WebServerService.h"
 #include "WiFiService.h"
-#include "utils/SerialCli.h"
+#include "SerialCli.h"
 
 void time_is_set(bool from_sntp) {
     Serial.println(F("The NTP server was called!"));
@@ -39,7 +39,7 @@ uint32_t sntp_update_delay_MS_rfc_not_less_than_15000() {
 
 static cli::SerialCli serialCli([](const char *data, size_t len) {
     Serial.write(data, len);
-});
+}, "ClockAll - Serial Commands");
 
 static const char TAG[] = "main";
 
